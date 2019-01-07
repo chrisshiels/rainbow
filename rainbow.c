@@ -14,7 +14,6 @@
     - 'PS1="\h$ "' confuses VTE status sequences.
     - 'man ls' includes a visible ANSI escape sequence.
     - 'top' occasionally includes a visible ANSI escape sequence.
-    - Resizing a window whilst writing causes a panic.
     - Need to add buffer overflow protection for keep.
 
 
@@ -301,9 +300,13 @@ int output(FILE *stdout,
     }
   }
 
-  fflush(stdout);
-  if (ferror(stdout))
-    return -1;
+  for (;;) {
+    fflush(stdout);
+    if (!ferror(stdout))
+      break;
+    clearerr(stdout);
+  }
+
   return 0;
 }
 
