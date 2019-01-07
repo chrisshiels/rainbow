@@ -7,7 +7,7 @@
     - man    - okish.
     - robots - okish.
     - rogue  - okish.
-    - reset  - not checked.
+    - reset  - okish.
 
 
   - Done:
@@ -245,7 +245,8 @@ int output(FILE *stdout,
           (keep[1] == ')' && keepi == 3) ||
           (keep[1] == '=' && keepi == 2) ||
           (keep[1] == '>' && keepi == 2) ||
-          (keep[1] == 'M' )) {
+          (keep[1] == 'M' && keepi == 2) ||
+          (keep[1] == 'c' && keepi == 2)) {
         keep[keepi] = '\0';
         fprintf(stdout, keep);
         keepi = 0;
