@@ -242,8 +242,8 @@ int output(FILE *stdout,
           (keep[1] == 'P' && buf[j] == '\\') ||
           (keep[1] == '(' && keepi == 3) ||
           (keep[1] == ')' && keepi == 3) ||
-	  (keep[1] == '=' && keepi == 2) ||
-	  (keep[1] == '>' && keepi == 2) ||
+          (keep[1] == '=' && keepi == 2) ||
+          (keep[1] == '>' && keepi == 2) ||
           (keep[1] == 'M' )) {
         keep[keepi] = '\0';
         fprintf(stdout, keep);
