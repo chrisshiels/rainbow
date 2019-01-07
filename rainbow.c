@@ -239,6 +239,7 @@ int output(FILE *stdout,
       keep[keepi++] = buf[j];
       if ((keep[1] == '[' && isalpha(buf[j])) ||
           (keep[1] == ']' && buf[j] == '\\') ||
+          (keep[1] == ']' && buf[j] == '\a') ||
           (keep[1] == 'P' && buf[j] == '\\') ||
           (keep[1] == '(' && keepi == 3) ||
           (keep[1] == ')' && keepi == 3) ||
