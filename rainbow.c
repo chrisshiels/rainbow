@@ -252,9 +252,9 @@ int output(FILE *stdout,
     }
     else if (state == utf8) {
       keep[keepi++] = buf[j];
-      if (((keep[1] & 0b110) && keepi == 2) ||
-          ((keep[2] & 0b1110) && keepi == 3) ||
-          ((keep[3] & 0b11110) && keepi == 4)) {
+      if (((keep[1] & 0b11000000) && keepi == 2) ||
+          ((keep[2] & 0b11100000) && keepi == 3) ||
+          ((keep[3] & 0b11110000) && keepi == 4)) {
         keep[keepi] = '\0';
         fprintf(stdout, keep);
         keepi = 0;
