@@ -4,8 +4,10 @@
     - vim    - okish.
     - emacs  - okish.
     - less   - okish.
+    - man    - okish.
     - robots - okish.
     - rogue  - okish.
+    - reset  - not checked.
 
 
   - Done:
@@ -190,9 +192,9 @@ int termiosreset(int fd, const struct termios *t) {
       - OSC - Operating System Command:       ESC ] data <ST>
 
         - Used by vte to report state, e.g.
-          ESC ] 777;notify;Command completed;sleep 5 <ST?>, then,
-          ESC ] 0;chris@holzer:~/c] <ST?>, then,
-          ESC ] 7;file://holzer.home.mecachis.net/home/chris/c <ST?>
+          ESC ] 777;notify;Command completed;sleep 5\a, then,
+          ESC ] 0;chris@holzer:~/c\a, then,
+          ESC ] 7;file://holzer.home.mecachis.net/home/chris/c\a
 
       - DCS - Device Control String:          ESC P data <ST>
 
@@ -210,7 +212,7 @@ int termiosreset(int fd, const struct termios *t) {
 
       - Move / scroll window down one line:   ESC M
 
-      - Set United States G0 character set:   ESC ( B 	
+      - Set United States G0 character set:   ESC ( B
 */
 int output(FILE *stdout,
            const char *buf,
