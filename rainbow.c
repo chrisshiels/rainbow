@@ -10,6 +10,14 @@
     - reset  - okish.
 
 
+  - To fix:
+    - 'PS1="\h$ "' confuses VTE status sequences.
+    - 'man ls' includes a visible ANSI escape sequence.
+    - 'top' occasionally includes a visible ANSI escape sequence.
+    - Resizing a window whilst writing causes a panic.
+    - Need to add buffer overflow protection for keep.
+
+
   - Done:
     - Control-c behaviour ok.
     - Control-z behaviour ok.
@@ -20,6 +28,7 @@
 
 
   - To do:
+    - Default to $SHELL and then default to /bin/bash.
     - Need much more robust ansi escape sequence parser.
     - Allow specifying command line to run.
     - Allow specifying to filter.
