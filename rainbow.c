@@ -309,7 +309,11 @@ int output(FILE *stdout,
       ansicolour24bit(stdout, red, green, blue);
       //ansicolour8bit(stdout, red, green, blue);
       fprintf(stdout, "%c", buf[j]);
-      *i += 1;
+
+      if (buf[j] == '\b')
+        *i -= 1;
+      else
+        *i += 1;
     }
   }
 
