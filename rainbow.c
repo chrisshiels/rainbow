@@ -233,12 +233,11 @@ int output(FILE *stdout,
   int green;
   int blue;
 
-  enum {
+  static enum {
     text,
     ansisequence,
     utf8
   } state = text;
-
   static char keep[1024];
   static int keepi;
 
@@ -320,7 +319,7 @@ int loop(FILE *stdout, int fdstdin, int fdmaster, int childpid) {
 
   fd_set readfds;
   int ret;
-  char buf[8192];
+  char buf[1024];
   int nread;
 
   for (;;) {
@@ -342,14 +341,14 @@ int loop(FILE *stdout, int fdstdin, int fdmaster, int childpid) {
     }
 
     if (FD_ISSET(fdstdin, &readfds)) {
-      if ((nread = read(fdstdin, buf, 8192)) == -1)
+      if ((nread = read(fdstdin, buf, 1024)) == -1)
         return returnperror("read()", -1);
       else if (write(fdmaster, buf, nread) != nread)
         return returnperror("write()", -1);
     }
 
     if (FD_ISSET(fdmaster, &readfds)) {
-      if ((nread = read(fdmaster, buf, 8192)) == -1)
+      if ((nread = read(fdmaster, buf, 1024)) == -1)
         return returnperror("read()", -1);
       else if (output(stdout, buf, nread, freq, spread, &os, &i) == -1)
         return returnperror("output()", -1);
