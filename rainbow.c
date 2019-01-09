@@ -14,9 +14,7 @@
 
 
   - To fix:
-    - 'PS1="\h$ "' confuses VTE status sequences.
     - 'man ls' includes a visible ANSI escape sequence.
-    - 'top' occasionally includes a visible ANSI escape sequence.
     - Need to add buffer overflow protection for keep.
 
 
