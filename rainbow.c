@@ -255,6 +255,7 @@ int output(FILE *stdout,
           (keepi == 2 && keep[1] == 'M') ||
           (keepi == 2 && keep[1] == 'c')) {
         keep[keepi] = '\0';
+        keepi = 0;
         fprintf(stdout, keep);
         state = text;
         continue;
@@ -266,6 +267,7 @@ int output(FILE *stdout,
           (keepi == 3 && (keep[2] & 0b11100000)) ||
           (keepi == 4 && (keep[3] & 0b11110000))) {
         keep[keepi] = '\0';
+        keepi = 0;
         fprintf(stdout, keep);
         state = text;
         continue;
@@ -284,6 +286,13 @@ int output(FILE *stdout,
         keep[keepi++] = buf[j];
         state = utf8;
         continue;
+      }
+
+      if (keepi != 0) {
+        keep[keepi] = '\0';
+        fprintf(stdout, keep);
+        fflush(stdout);
+        abort();
       }
 
       if (buf[j] == '\n') {
