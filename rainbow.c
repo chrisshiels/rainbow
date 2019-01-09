@@ -1,13 +1,16 @@
 /*
   - Test with:
-    - top    - okish.
-    - vim    - okish.
-    - emacs  - okish.
-    - less   - okish.
-    - man    - okish.
-    - robots - okish.
-    - rogue  - okish.
-    - reset  - okish.
+    - top     - okish.
+    - vim     - okish.
+    - emacs   - okish.
+    - less    - okish.
+    - man     - okish.
+    - robots  - okish.
+    - rogue   - okish.
+    - reset   - okish.
+    - cmatrix - okish.
+    - screen  - okish.
+    - tmux    - okish.
 
 
   - To fix:
