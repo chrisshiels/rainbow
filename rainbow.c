@@ -267,9 +267,10 @@ int output(FILE *stdout,
     if (state == ansisequence) {
       keep[keepi++] = buf[j];
       if (keep[1] == '[' && keep[keepi - 1] == 'H') {
-        int x, y;
-        if (sscanf("\x1b[75;75Haaa", "\x1b[%d;%dH", &x, &y) == 2) {
-          *i = x;
+        keep[keepi] = '\0';
+        int row, column;
+        if (sscanf(keep, "\x1b[%d;%dH", &row, &column) == 2) {
+          *i = column;
           *os += 1;
         }
         keep[keepi] = '\0';
