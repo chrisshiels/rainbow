@@ -310,6 +310,8 @@ int output(FILE *stdout,
 
       if (buf[j] == '\b')
         *i -= 1;
+      else if (buf[j] == '\r')
+        *i = 0;
       else
         *i += 1;
     }
