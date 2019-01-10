@@ -261,9 +261,9 @@ int output(FILE *stdout,
       if ((keep[1] == '[' && isalpha(keep[keepi - 1])) ||
           (keep[1] == ']' && keep[keepi - 1] == '\a') ||
           (keep[1] == ']' &&
-	   keep[keepi - 2] == '\x1b' && keep[keepi - 1] == '\\') ||
+           keep[keepi - 2] == '\x1b' && keep[keepi - 1] == '\\') ||
           (keep[1] == 'P' &&
-	   keep[keepi - 2] == '\x1b' && keep[keepi - 1] == '\\') ||
+           keep[keepi - 2] == '\x1b' && keep[keepi - 1] == '\\') ||
           (keepi == 3 && keep[1] == '(') ||
           (keepi == 3 && keep[1] == ')') ||
           (keepi == 2 && keep[1] == '=') ||
