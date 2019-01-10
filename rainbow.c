@@ -1,21 +1,42 @@
 /*
+  - See:
+    - Making Rainbows With Ruby, Waves And A Flux Capacitor
+      - http://nikolay.rocks/2015-10-24-waves-rainbows-and-flux
+    - busyloop/lolcat
+      - https://github.com/busyloop/lolcat
+
+
   - Test with:
-    - top     - okish.
-    - vim     - okish.
-    - emacs   - okish.
-    - less    - okish.
-    - man     - okish.
-    - robots  - okish.
-    - rogue   - okish.
-    - reset   - okish.
-    - cmatrix - okish.
-    - screen  - okish.
-    - tmux    - okish.
+    - top     - ok.
+    - vim     - ok.
+    - emacs   - ok.
+    - less    - ok.
+    - man     - ok.
+    - robots  - ok.
+    - rogue   - ok.
+    - reset   - ok.
+    - cmatrix - ok.
+    - screen  - ok.
+    - tmux    - ok.
 
 
   - To fix:
+    - Rethink os, i in terms of os, row, column and CSI CUP.
+    - Rethink parsing all CSI sequences and maintaining row, column instead
+      of os and i.
     - 'man ls' includes a visible ANSI escape sequence.
     - Need to add buffer overflow protection for keep.
+    - Colourise utf8 output.
+    - #ifdef around keepi check - and check if still necessary.
+    - Crashes when running Flask.
+    - readline editing.
+    - vim ^k results in visible ANSI escape sequence.
+    - Leave ansisequence after 20 unrecognised bytes.
+    - Leave utf8 after 4 unrecognised bytes.
+    - Move ansisequence conditions to separate parse functions.
+    - ^l results in odd colour change for first line only.
+    - Rewrite waitpid code to avoid <defunct> processes, say 2 seconds timeout?
+    - vim insert mode colour transitions are too coarse.
 
 
   - Done:
