@@ -467,29 +467,6 @@ int start(const char **envp, int fdmaster, int fdslave) {
 int main(int argc, const char **argv, const char **envp) {
   srandom(time(NULL));
 
-
-#if 0
-  float freq = 0.1;
-  float spread = 3.0;
-  float os = random() * 1.0 / RAND_MAX * 255;
-
-  int red;
-  int green;
-  int blue;
-  const char *message = "No hay mal que por bien no venga\n";
-  for (int j = 0; j < 100; j++) {
-    os++;
-    for (int i = 0; i < strlen(message); i++) {
-      rainbow(freq, os + i / spread, &red, &green, &blue);
-      ansicolour24bit(stdout, red, green, blue);
-      //ansicolour8bit(stdout, red, green, blue);
-      fprintf(stdout, "%c", message[i]);
-    }
-    fflush(stdout);
-  }
-#endif
-
-
   int fdmaster, fdslave;
   if (pty(&fdmaster, &fdslave) == -1)
     return EXIT_FAILURE;
