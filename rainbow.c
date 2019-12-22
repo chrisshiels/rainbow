@@ -366,8 +366,7 @@ int output(FILE *stdout,
 int loop(FILE *stdout, int fdstdin, int fdmaster, int childpid) {
   float freq = 0.1;
   float spread = 3.0;
-  float os = rand() * 1.0 / RAND_MAX * 255;
-  //float os = random() * 1.0 / RAND_MAX * 255;
+  float os = random() * 1.0 / RAND_MAX * 255;
   int i = 0;
 
   fd_set readfds;
@@ -466,15 +465,13 @@ int start(const char **envp, int fdmaster, int fdslave) {
 
 
 int main(int argc, const char **argv, const char **envp) {
-  srand(time(NULL));
-  //srandom(time(NULL));
+  srandom(time(NULL));
 
 
 #if 0
   float freq = 0.1;
   float spread = 3.0;
-  float os = rand() * 1.0 / RAND_MAX * 255;
-  //float os = random() * 1.0 / RAND_MAX * 255;
+  float os = random() * 1.0 / RAND_MAX * 255;
 
   int red;
   int green;
