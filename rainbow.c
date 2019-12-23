@@ -1,41 +1,45 @@
+/* 'rainbow.c'. */
+/* Chris Shiels.  2019. */
+
+
 /*
   - See:
-    - Making Rainbows With Ruby, Waves And A Flux Capacitor
+    - Making Rainbows With Ruby, Waves And A Flux Capacitor.
       - http://nikolay.rocks/2015-10-24-waves-rainbows-and-flux
-    - busyloop/lolcat
+    - busyloop / lolcat.
       - https://github.com/busyloop/lolcat
 
 
-  - Test with:
-    - top     - ok.
-    - vim     - ok.
-    - emacs   - ok.
-    - less    - ok.
-    - man     - ok.
-    - robots  - ok.
-    - rogue   - ok.
-    - reset   - ok.
-    - cmatrix - ok.
-    - screen  - ok.
-    - tmux    - ok.
+  - Tested:
+    - cmatrix       - ok.
+    - emacs         - ok.
+    - less          - ok.
+    - man           - ok.
+    - mutt          - ok.
+    - reset         - ok.
+    - robots        - ok.
+    - screen        - ok.
+    - tmux          - ok.
+    - top           - ok.
+    - vim           - ok.
 
 
-  - To fix:
+  - Fix:
+    - Move rainbow inputs around.
+    - mc doesn't work at all.
     - Rethink os, i in terms of os, row, column and CSI CUP.
     - Rethink parsing all CSI sequences and maintaining row, column instead
       of os and i.
-    - 'man ls' includes a visible ANSI escape sequence.
     - Need to add buffer overflow protection for keep.
-    - Colourise utf8 output.
     - #ifdef around keepi check - and check if still necessary.
     - Crashes when running Flask.
+    - rogue had problems.
     - readline editing.
     - vim ^k results in visible ANSI escape sequence.
     - Leave ansisequence after 20 unrecognised bytes.
     - Leave utf8 after 4 unrecognised bytes.
     - Move ansisequence conditions to separate parse functions.
     - ^l results in odd colour change for first line only.
-    - Rewrite waitpid code to avoid <defunct> processes, say 2 seconds timeout?
     - vim insert mode colour transitions are too coarse.
 
 
@@ -58,12 +62,6 @@
   - Hmmmm:
     - We're faster than lolcat - guessing they're flushing per character but
       we're using C stream buffering on stdout in order to minimise writes.
-    - Trying to use nonblocking was a mistake:
-      - Setting nonblocking on stdin resulted in it also being set on stdout.
-      - And we're using C stream buffering but occasional underlying write()s
-        would fail with errno == EAGAIN.
-      - But C stream wasn't retrying.
-      - End result was losing output.
 */
 
 
