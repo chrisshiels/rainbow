@@ -403,8 +403,6 @@ int loop(FILE *stdout, int fdstdin, int fdmaster, int childpid) {
         return returnperror("read()", -1);
       else if (output(stdout, buf, nread, freq, spread, &os, &i) == -1)
         return returnperror("output()", -1);
-      //else if (write(STDOUT_FILENO, buf, nread) != nread)
-      //  return returnperror("write()", -1);
     }
   }
 
