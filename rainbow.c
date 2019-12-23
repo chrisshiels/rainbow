@@ -144,9 +144,9 @@ int pty(int *fdmaster, int *fdslave) {
 int windowsizecopy(int fdfrom, int fdto) {
   struct winsize w;
 
-  if (ioctl(fdfrom, TIOCGWINSZ, (char *)&w) == -1)
+  if (ioctl(fdfrom, TIOCGWINSZ, &w) == -1)
     return returnperror("ioctl()", -1);
-  if (ioctl(fdto, TIOCSWINSZ, (char *)&w) == -1)
+  if (ioctl(fdto, TIOCSWINSZ, &w) == -1)
     return returnperror("ioctl()", -1);
 
   return 0;
