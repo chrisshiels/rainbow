@@ -259,16 +259,18 @@ int output(FILE *stdout,
   int blue;
 
   static enum {
-    text,
     ansisequence,
-    utf8
+    utf8,
+    text
   } state = text;
   static char keep[1024];
   static int keepi;
 
-  for (int j = 0; j < count; j++) {
+  int j;
+  for (j = 0; j < count; j++) {
     if (state == ansisequence) {
       keep[keepi++] = buf[j];
+      /* ANSI:  'CSI n ; m H' - CUP - Cursor Position: */
       if (keep[1] == '[' && keep[keepi - 1] == 'H') {
         keep[keepi] = '\0';
         int row, column;
@@ -276,28 +278,32 @@ int output(FILE *stdout,
           *i = column;
           *os += 1;
         }
-        keep[keepi] = '\0';
-        keepi = 0;
         fprintf(stdout, keep);
+        keepi = 0;
         state = text;
         continue;
       }
 
-      if ((keep[1] == '[' && isalpha(keep[keepi - 1])) ||
-          (keep[1] == ']' && keep[keepi - 1] == '\a') ||
-          (keep[1] == ']' &&
-           keep[keepi - 2] == '\x1b' && keep[keepi - 1] == '\\') ||
-          (keep[1] == 'P' &&
-           keep[keepi - 2] == '\x1b' && keep[keepi - 1] == '\\') ||
-          (keepi == 3 && keep[1] == '(') ||
-          (keepi == 3 && keep[1] == ')') ||
-          (keepi == 2 && keep[1] == '=') ||
-          (keepi == 2 && keep[1] == '>') ||
-          (keepi == 2 && keep[1] == 'M') ||
-          (keepi == 2 && keep[1] == 'c')) {
+      if (/* ANSI:  CSI - Control Sequence Introducer: */
+            (keep[1] == '[' && isalpha(keep[keepi - 1])) ||
+          /* ANSI:  OSC - Operating System Command: */
+            (keep[1] == ']' && keep[keepi - 1] == '\a') ||
+          /* ANSI:  OSC - Operating System Command: */
+            (keep[1] == ']' &&
+             keep[keepi - 2] == '\x1b' && keep[keepi - 1] == '\\') ||
+          /* ANSI:  DCS - Device Control String: */
+            (keep[1] == 'P' &&
+             keep[keepi - 2] == '\x1b' && keep[keepi - 1] == '\\') ||
+          /* VT100: */
+            (keepi == 3 && keep[1] == '(') ||
+            (keepi == 3 && keep[1] == ')') ||
+            (keepi == 2 && keep[1] == '=') ||
+            (keepi == 2 && keep[1] == '>') ||
+            (keepi == 2 && keep[1] == 'M') ||
+            (keepi == 2 && keep[1] == 'c')) {
         keep[keepi] = '\0';
-        keepi = 0;
         fprintf(stdout, keep);
+        keepi = 0;
         state = text;
         continue;
       }
@@ -308,8 +314,8 @@ int output(FILE *stdout,
           (keepi == 3 && (keep[2] & 0b11100000)) ||
           (keepi == 4 && (keep[3] & 0b11110000))) {
         keep[keepi] = '\0';
-        keepi = 0;
         fprintf(stdout, keep);
+        keepi = 0;
         state = text;
         continue;
       }
@@ -329,29 +335,19 @@ int output(FILE *stdout,
         continue;
       }
 
-      if (keepi != 0) {
-        keep[keepi] = '\0';
-        fprintf(stdout, keep);
-        fflush(stdout);
-        abort();
-      }
-
       if (buf[j] == '\n') {
         *os += 1;
         *i = 0;
-      }
-
-      rainbow(freq, *os + *i / spread, &red, &green, &blue);
-      ansicolour24bit(stdout, red, green, blue);
-      //ansicolour8bit(stdout, red, green, blue);
-      fprintf(stdout, "%c", buf[j]);
-
-      if (buf[j] == '\b')
+      } else if (buf[j] == '\b')
         *i -= 1;
       else if (buf[j] == '\r')
         *i = 0;
       else
         *i += 1;
+
+      rainbow(freq, *os + *i / spread, &red, &green, &blue);
+      ansicolour24bit(stdout, red, green, blue);
+      fputc(buf[j], stdout);
     }
   }
 
