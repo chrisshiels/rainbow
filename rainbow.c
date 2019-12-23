@@ -153,11 +153,13 @@ int windowsizecopy(int fdfrom, int fdto) {
 }
 
 
-void signalchildstoppedorterminated() {}
-
-
 static int g_fdstdin;
 static int g_fdmaster;
+
+
+void signalchildstoppedorterminated() {
+  close(g_fdmaster);
+}
 
 
 void signalwindowresize() {
@@ -167,11 +169,12 @@ void signalwindowresize() {
 
 
 int signals(int fdstin, int fdmaster) {
+  g_fdstdin = fdstin;
+  g_fdmaster = fdmaster;
+
   if (signal(SIGCHLD, signalchildstoppedorterminated) == SIG_ERR)
     return returnperror("signal()", -1);
 
-  g_fdstdin = fdstin;
-  g_fdmaster = fdmaster;
   if (signal(SIGWINCH, signalwindowresize) == SIG_ERR)
     return returnperror("signal()", -1);
 
@@ -380,16 +383,12 @@ int loop(FILE *stdout, int fdstdin, int fdmaster, int childpid) {
     FD_SET(fdmaster, &readfds);
 
     if (select(fdmaster + 1, &readfds, NULL, NULL, NULL) == -1) {
-      if (errno != EINTR)
+      if (errno == EINTR)
+        continue;
+      else if (errno == EBADF)
+        break;
+      else
         return returnperror("select()", -1);
-      else {
-        if ((ret = waitpid(childpid, NULL, WNOHANG)) == -1)
-          return returnperror("waitpid()", -1);
-        else if (ret == childpid)
-          break;
-        else
-          continue;
-      }
     }
 
     if (FD_ISSET(fdstdin, &readfds)) {
