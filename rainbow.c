@@ -369,7 +369,6 @@ int loop(FILE *stdout, int fdstdin, int fdmaster, int childpid) {
   int i = 0;
 
   fd_set readfds;
-  int ret;
   char buf[1024];
   int nread;
 
