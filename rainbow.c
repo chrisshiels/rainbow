@@ -15,6 +15,7 @@
     - emacs         - ok.
     - less          - ok.
     - man           - ok.
+    - mc            - ok.
     - mutt          - ok.
     - reset         - ok.
     - robots        - ok.
@@ -26,7 +27,6 @@
 
   - Fix:
     - Move rainbow inputs around.
-    - mc doesn't work at all.
     - Rethink os, i in terms of os, row, column and CSI CUP.
     - Rethink parsing all CSI sequences and maintaining row, column instead
       of os and i.
@@ -35,7 +35,6 @@
     - Crashes when running Flask.
     - rogue had problems.
     - readline editing.
-    - vim ^k results in visible ANSI escape sequence.
     - Leave ansisequence after 20 unrecognised bytes.
     - Leave utf8 after 4 unrecognised bytes.
     - Move ansisequence conditions to separate parse functions.
@@ -305,10 +304,12 @@ int output(FILE *stdout,
     }
     else if (state == utf8) {
       keep[keepi++] = buf[j];
-      if ((keepi == 2 && (keep[1] & 0b11000000)) ||
-          (keepi == 3 && (keep[2] & 0b11100000)) ||
-          (keepi == 4 && (keep[3] & 0b11110000))) {
+      if ((keepi == 2 && (((unsigned char)keep[0] >> 5) == 0b110)) ||
+          (keepi == 3 && (((unsigned char)keep[0] >> 4) == 0b1110)) ||
+          (keepi == 4 && (((unsigned char)keep[0] >> 3) == 0b11110))) {
         keep[keepi] = '\0';
+        rainbow(freq, *os + *i / spread, &red, &green, &blue);
+        ansicolour24bit(stdout, red, green, blue);
         fprintf(stdout, keep);
         keepi = 0;
         state = text;
