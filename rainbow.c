@@ -26,12 +26,14 @@
 
 
   - Fix:
+    - Add 8bit support via command line flag - might be necessary for
+      Linux console.
+    - Have less dark colours.
     - Move rainbow inputs around.
     - Rethink os, i in terms of os, row, column and CSI CUP.
     - Rethink parsing all CSI sequences and maintaining row, column instead
       of os and i.
     - Need to add buffer overflow protection for keep.
-    - #ifdef around keepi check - and check if still necessary.
     - Crashes when running Flask.
     - rogue had problems.
     - readline editing.
@@ -206,6 +208,9 @@ int termiosreset(int fd, const struct termios *t) {
 
 /*
   - Notes on ANSI escape sequences:
+
+    - See:
+      console_codes(4)
 
     - See:
       https://en.wikipedia.org/wiki/ANSI_escape_code
