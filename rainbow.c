@@ -19,6 +19,7 @@
     - mutt          - ok.
     - reset         - ok.
     - robots        - ok.
+    - rogue         - ok.
     - screen        - ok.
     - tmux          - ok.
     - top           - ok.
@@ -298,6 +299,8 @@ int output(FILE *stdout,
             (keepi == 3 && keep[1] == ')') ||
             (keepi == 2 && keep[1] == '=') ||
             (keepi == 2 && keep[1] == '>') ||
+            (keepi == 2 && keep[1] == '7') ||
+            (keepi == 2 && keep[1] == '8') ||
             (keepi == 2 && keep[1] == 'M') ||
             (keepi == 2 && keep[1] == 'c')) {
         keep[keepi] = '\0';
