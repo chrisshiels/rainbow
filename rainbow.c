@@ -4,10 +4,10 @@
 
 /*
   - See:
+    - lolcat.
+      - https://github.com/busyloop/lolcat
     - Making Rainbows With Ruby, Waves And A Flux Capacitor.
       - http://nikolay.rocks/2015-10-24-waves-rainbows-and-flux
-    - busyloop / lolcat.
-      - https://github.com/busyloop/lolcat
 
 
   - Tested:
@@ -252,11 +252,13 @@ int output(FILE *stdout,
            int count,
            float freq,
            float spread,
-           float *os,
-           int *i) {
+           float *os) {
   int red;
   int green;
   int blue;
+
+  static int row;
+  static int column;
 
   static enum {
     ansisequence,
@@ -273,10 +275,10 @@ int output(FILE *stdout,
       /* ANSI:  'CSI n ; m H' - CUP - Cursor Position: */
       if (keep[1] == '[' && keep[keepi - 1] == 'H') {
         keep[keepi] = '\0';
-        int row, column;
-        if (sscanf(keep, "\x1b[%d;%dH", &row, &column) == 2) {
-          *i = column;
-          *os += 1;
+        int row1, column1;
+        if (sscanf(keep, "\x1b[%d;%dH", &row1, &column1) == 2) {
+          row = row1;
+          column = column1;
         }
         fprintf(stdout, keep);
         keepi = 0;
@@ -316,7 +318,7 @@ int output(FILE *stdout,
           (keepi == 3 && (((unsigned char)keep[0] >> 4) == 0b1110)) ||
           (keepi == 4 && (((unsigned char)keep[0] >> 3) == 0b11110))) {
         keep[keepi] = '\0';
-        rainbow(freq, *os + *i / spread, &red, &green, &blue);
+        rainbow(freq, *os + row + column / spread, &red, &green, &blue);
         ansicolour24bit(stdout, red, green, blue);
         fprintf(stdout, keep);
         keepi = 0;
@@ -340,16 +342,16 @@ int output(FILE *stdout,
       }
 
       if (buf[j] == '\n') {
-        *os += 1;
-        *i = 0;
+        row += 1;
+        column = 0;
       } else if (buf[j] == '\b')
-        *i -= 1;
+        column -= 1;
       else if (buf[j] == '\r')
-        *i = 0;
+        column = 0;
       else
-        *i += 1;
+        column += 1;
 
-      rainbow(freq, *os + *i / spread, &red, &green, &blue);
+      rainbow(freq, *os + row + column / spread, &red, &green, &blue);
       ansicolour24bit(stdout, red, green, blue);
       fputc(buf[j], stdout);
     }
@@ -370,7 +372,6 @@ int loop(FILE *stdout, int fdstdin, int fdmaster, int childpid) {
   float freq = 0.1;
   float spread = 3.0;
   float os = random() * 1.0 / RAND_MAX * 255;
-  int i = 0;
 
   fd_set readfds;
   char buf[1024];
@@ -400,7 +401,7 @@ int loop(FILE *stdout, int fdstdin, int fdmaster, int childpid) {
     if (FD_ISSET(fdmaster, &readfds)) {
       if ((nread = read(fdmaster, buf, 1024)) == -1)
         return returnperror("read()", -1);
-      else if (output(stdout, buf, nread, freq, spread, &os, &i) == -1)
+      else if (output(stdout, buf, nread, freq, spread, &os) == -1)
         return returnperror("output()", -1);
     }
   }
