@@ -11,16 +11,20 @@
 
 
   - Tested:
+    - asciiquarium  - ok.
     - cmatrix       - ok.
     - emacs         - ok.
     - less          - ok.
     - man           - ok.
     - mc            - ok.
     - mutt          - ok.
+    - myman         - ok.
+    - nethack       - ok.
     - reset         - ok.
     - robots        - ok.
     - rogue         - ok.
     - screen        - ok.
+    - sl            - ok.
     - tmux          - ok.
     - top           - ok.
     - vim           - ok.
