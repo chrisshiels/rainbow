@@ -18,7 +18,6 @@
     - man           - ok.
     - mc            - ok.
     - mutt          - ok.
-    - myman         - ok.
     - nethack       - ok.
     - reset         - ok.
     - robots        - ok.
@@ -31,6 +30,8 @@
 
 
   - Fix:
+    - Replace unnecessary fprintf() calls with fputs().
+    - bash readline editing breaks with:  echo ls <ctrl-a> # <return>
     - Add 8bit support via command line flag - might be necessary for
       Linux console.
     - Have less dark colours.
