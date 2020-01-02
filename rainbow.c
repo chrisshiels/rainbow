@@ -212,6 +212,30 @@ int termiosreset(int fd, const struct termios *t) {
 }
 
 
+typedef void *(*parserfunction)(float freq, float spread, float os,
+                                int *row, int *column,
+                                char *keep, int *keepi,
+                                char ch);
+
+
+void *parseescapesequence(float freq, float spread, float os,
+                          int *row, int *column,
+                          char *keep, int *keepi,
+                          char ch);
+
+
+void *parseutf8(float freq, float spread, float os,
+                int *row, int *column,
+                char *keep, int *keepi,
+                char ch);
+
+
+void *parsetext(float freq, float spread, float os,
+                int *row, int *column,
+                char *keep, int *keepi,
+                char ch);
+
+
 /*
   - Notes on ANSI escape sequences:
 
@@ -252,114 +276,131 @@ int termiosreset(int fd, const struct termios *t) {
 
       - Set United States G0 character set:   ESC ( B
 */
+void *parseescapesequence(float freq, float spread, float os,
+                          int *row, int *column,
+                          char *keep, int *keepi,
+                          char ch) {
+  keep[(*keepi)++] = ch;
+  /* ANSI:  'CSI n ; m H' - CUP - Cursor Position: */
+  if (keep[1] == '[' && keep[*keepi - 1] == 'H') {
+    keep[*keepi] = '\0';
+    int row1, column1;
+    if (sscanf(keep, "\x1b[%d;%dH", &row1, &column1) == 2) {
+      *row = row1;
+      *column = column1;
+    }
+    fprintf(stdout, keep);
+    *keepi = 0;
+    return parsetext;
+  }
+
+  if (/* ANSI:  CSI - Control Sequence Introducer: */
+        (keep[1] == '[' && isalpha(keep[*keepi - 1])) ||
+      /* ANSI:  OSC - Operating System Command: */
+        (keep[1] == ']' && keep[*keepi - 1] == '\a') ||
+      /* ANSI:  OSC - Operating System Command: */
+        (keep[1] == ']' &&
+         keep[*keepi - 2] == '\x1b' && keep[*keepi - 1] == '\\') ||
+      /* ANSI:  DCS - Device Control String: */
+        (keep[1] == 'P' &&
+         keep[*keepi - 2] == '\x1b' && keep[*keepi - 1] == '\\') ||
+      /* VT100: */
+        (*keepi == 3 && keep[1] == '(') ||
+        (*keepi == 3 && keep[1] == ')') ||
+        (*keepi == 2 && keep[1] == '=') ||
+        (*keepi == 2 && keep[1] == '>') ||
+        (*keepi == 2 && keep[1] == '7') ||
+        (*keepi == 2 && keep[1] == '8') ||
+        (*keepi == 2 && keep[1] == 'M') ||
+        (*keepi == 2 && keep[1] == 'c')) {
+    keep[*keepi] = '\0';
+    fprintf(stdout, keep);
+    *keepi = 0;
+    return parsetext;
+  }
+
+  return parseescapesequence;
+}
+
+
+void *parseutf8(float freq, float spread, float os,
+                int *row, int *column,
+                char *keep, int *keepi,
+                char ch) {
+  int red;
+  int green;
+  int blue;
+
+  keep[(*keepi)++] = ch;
+  if ((*keepi == 2 && (((unsigned char)keep[0] >> 5) == 0b110)) ||
+      (*keepi == 3 && (((unsigned char)keep[0] >> 4) == 0b1110)) ||
+      (*keepi == 4 && (((unsigned char)keep[0] >> 3) == 0b11110))) {
+    keep[*keepi] = '\0';
+    rainbow(freq, os + *row + *column / spread, &red, &green, &blue);
+    ansicolour24bit(stdout, red, green, blue);
+    fprintf(stdout, keep);
+    *keepi = 0;
+    return parsetext;
+  }
+
+  return parseutf8;
+}
+
+
+void *parsetext(float freq, float spread, float os,
+                int *row, int *column,
+                char *keep, int *keepi,
+                char ch) {
+  int red;
+  int green;
+  int blue;
+
+  if (ch == '\x1b') {
+    *keepi = 0;
+    keep[(*keepi)++] = ch;
+    return parseescapesequence;
+  }
+
+  if (ch & 128) {
+    *keepi = 0;
+    keep[(*keepi)++] = ch;
+    return parseutf8;
+  }
+
+  if (ch == '\n') {
+    *row += 1;
+    *column = 0;
+  } else if (ch == '\b')
+    *column -= 1;
+  else if (ch == '\r')
+    *column = 0;
+  else
+    *column += 1;
+
+  rainbow(freq, os + *row + *column / spread, &red, &green, &blue);
+  ansicolour24bit(stdout, red, green, blue);
+  fputc(ch, stdout);
+  return parsetext;
+}
+
+
 int output(FILE *stdout,
            const char *buf,
            int count,
            float freq,
            float spread,
-           float *os) {
-  int red;
-  int green;
-  int blue;
-
+           float os) {
   static int row;
   static int column;
 
-  static enum {
-    ansisequence,
-    utf8,
-    text
-  } state = text;
   static char keep[1024];
   static int keepi;
 
-  int j;
-  for (j = 0; j < count; j++) {
-    if (state == ansisequence) {
-      keep[keepi++] = buf[j];
-      /* ANSI:  'CSI n ; m H' - CUP - Cursor Position: */
-      if (keep[1] == '[' && keep[keepi - 1] == 'H') {
-        keep[keepi] = '\0';
-        int row1, column1;
-        if (sscanf(keep, "\x1b[%d;%dH", &row1, &column1) == 2) {
-          row = row1;
-          column = column1;
-        }
-        fprintf(stdout, keep);
-        keepi = 0;
-        state = text;
-        continue;
-      }
+  static parserfunction parser = parsetext;
 
-      if (/* ANSI:  CSI - Control Sequence Introducer: */
-            (keep[1] == '[' && isalpha(keep[keepi - 1])) ||
-          /* ANSI:  OSC - Operating System Command: */
-            (keep[1] == ']' && keep[keepi - 1] == '\a') ||
-          /* ANSI:  OSC - Operating System Command: */
-            (keep[1] == ']' &&
-             keep[keepi - 2] == '\x1b' && keep[keepi - 1] == '\\') ||
-          /* ANSI:  DCS - Device Control String: */
-            (keep[1] == 'P' &&
-             keep[keepi - 2] == '\x1b' && keep[keepi - 1] == '\\') ||
-          /* VT100: */
-            (keepi == 3 && keep[1] == '(') ||
-            (keepi == 3 && keep[1] == ')') ||
-            (keepi == 2 && keep[1] == '=') ||
-            (keepi == 2 && keep[1] == '>') ||
-            (keepi == 2 && keep[1] == '7') ||
-            (keepi == 2 && keep[1] == '8') ||
-            (keepi == 2 && keep[1] == 'M') ||
-            (keepi == 2 && keep[1] == 'c')) {
-        keep[keepi] = '\0';
-        fprintf(stdout, keep);
-        keepi = 0;
-        state = text;
-        continue;
-      }
-    }
-    else if (state == utf8) {
-      keep[keepi++] = buf[j];
-      if ((keepi == 2 && (((unsigned char)keep[0] >> 5) == 0b110)) ||
-          (keepi == 3 && (((unsigned char)keep[0] >> 4) == 0b1110)) ||
-          (keepi == 4 && (((unsigned char)keep[0] >> 3) == 0b11110))) {
-        keep[keepi] = '\0';
-        rainbow(freq, *os + row + column / spread, &red, &green, &blue);
-        ansicolour24bit(stdout, red, green, blue);
-        fprintf(stdout, keep);
-        keepi = 0;
-        state = text;
-        continue;
-      }
-    }
-    else if (state == text) {
-      if (buf[j] == '\x1b') {
-        keepi = 0;
-        keep[keepi++] = buf[j];
-        state = ansisequence;
-        continue;
-      }
-
-      if (buf[j] & 128) {
-        keepi = 0;
-        keep[keepi++] = buf[j];
-        state = utf8;
-        continue;
-      }
-
-      if (buf[j] == '\n') {
-        row += 1;
-        column = 0;
-      } else if (buf[j] == '\b')
-        column -= 1;
-      else if (buf[j] == '\r')
-        column = 0;
-      else
-        column += 1;
-
-      rainbow(freq, *os + row + column / spread, &red, &green, &blue);
-      ansicolour24bit(stdout, red, green, blue);
-      fputc(buf[j], stdout);
-    }
+  int i;
+  for (i = 0; i < count; i++) {
+    parser = parser(freq, spread, os, &row, &column, keep, &keepi, buf[i]);
   }
 
   for (;;) {
@@ -406,7 +447,7 @@ int loop(FILE *stdout, int fdstdin, int fdmaster, int childpid) {
     if (FD_ISSET(fdmaster, &readfds)) {
       if ((nread = read(fdmaster, buf, 1024)) == -1)
         return returnperror("read()", -1);
-      else if (output(stdout, buf, nread, freq, spread, &os) == -1)
+      else if (output(stdout, buf, nread, freq, spread, os) == -1)
         return returnperror("output()", -1);
     }
   }
