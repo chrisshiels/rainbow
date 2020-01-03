@@ -30,6 +30,8 @@
 
 
   - Fix:
+    - Need to do some work on bash ^r to preserve row, column.
+    - Not sure can preserve row, column in less ^l.
     - Replace unnecessary fprintf() calls with fputs().
     - bash readline editing breaks with:  echo ls <ctrl-a> # <return>
     - Add 8bit support via command line flag - might be necessary for
