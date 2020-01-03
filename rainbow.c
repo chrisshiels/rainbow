@@ -212,6 +212,27 @@ int termiosreset(int fd, const struct termios *t) {
 }
 
 
+int parsenandm(const char *s, int *n, int *m) {
+  *n = 0;
+  *m = 0;
+
+  for (; *s && isdigit(*s); s++) {
+    *n *= 10;
+    *n += *s - '0';
+  }
+
+  if (*s++ != ';')
+    return 0;
+
+  for (; *s && isdigit(*s); s++) {
+    *m *= 10;
+    *m += *s - '0';
+  }
+
+  return 0;
+}
+
+
 typedef void *(*parserfunction)(float freq, float spread, float os,
                                 int *row, int *column,
                                 char *keep, int *keepi,
@@ -244,7 +265,7 @@ void *parsetext(float freq, float spread, float os,
 
     - See:
       https://en.wikipedia.org/wiki/ANSI_escape_code
-    
+
     - Sequences:
 
       - ST  - String Terminator:              ESC \
@@ -281,22 +302,60 @@ void *parseescapesequence(float freq, float spread, float os,
                           char *keep, int *keepi,
                           char ch) {
   keep[(*keepi)++] = ch;
-  /* ANSI:  'CSI n ; m H' - CUP - Cursor Position: */
-  if (keep[1] == '[' && keep[*keepi - 1] == 'H') {
-    keep[*keepi] = '\0';
-    int row1, column1;
-    if (sscanf(keep, "\x1b[%d;%dH", &row1, &column1) == 2) {
-      *row = row1;
-      *column = column1;
+
+  if (/* ANSI:  CSI - Control Sequence Introducer: */
+        keep[1] == '[' && isalpha(keep[*keepi - 1])) {
+    int n;
+    int m;
+
+    parsenandm(keep + 2, &n, &m);
+
+    if (n == 0)
+      n = 1;
+
+    if (m == 0)
+      m = 1;
+
+    switch (keep[*keepi - 1]) {
+    case 'A': /* ANSI:  'CSI n A' - CUU - Cursor Up: */
+              *row -= n;
+              break;
+    case 'B': /* ANSI:  'CSI n B' - CUD - Cursor Down: */
+              *row += n;
+              break;
+    case 'C': /* ANSI:  'CSI n C' - CUF - Cursor Forward: */
+              *column += n;
+              break;
+    case 'D': /* ANSI:  'CSI n D' - CUB - Cursor Back: */
+              *column -= n;
+              break;
+    case 'E': /* ANSI:  'CSI n E' - CNL - Cursor Next Line: */
+              *row += n;
+              *column = 1;
+              break;
+    case 'F': /* ANSI:  'CSI n F' - CPL - Cursor Previous Line: */
+              *row -= n;
+              *column = 1;
+              break;
+    case 'G': /* ANSI:  'CSI n G' - CHA - Cursor Horizontal Absolute: */
+              *column = n;
+              break;
+    case 'H': /* ANSI:  'CSI n ; m H' - CUP - Cursor Position: */
+              *row = n;
+              *column = m;
+              break;
+    case 'f': /* ANSI:  'CSI n ; m f' - HVP - Horizontal Vertical Position: */
+              *row = n;
+              *column = m;
+              break;
     }
+    keep[*keepi] = '\0';
     fprintf(stdout, keep);
     *keepi = 0;
     return parsetext;
   }
 
-  if (/* ANSI:  CSI - Control Sequence Introducer: */
-        (keep[1] == '[' && isalpha(keep[*keepi - 1])) ||
-      /* ANSI:  OSC - Operating System Command: */
+  if (/* ANSI:  OSC - Operating System Command: */
         (keep[1] == ']' && keep[*keepi - 1] == '\a') ||
       /* ANSI:  OSC - Operating System Command: */
         (keep[1] == ']' &&
@@ -332,6 +391,7 @@ void *parseutf8(float freq, float spread, float os,
   int blue;
 
   keep[(*keepi)++] = ch;
+
   if ((*keepi == 2 && (((unsigned char)keep[0] >> 5) == 0b110)) ||
       (*keepi == 3 && (((unsigned char)keep[0] >> 4) == 0b1110)) ||
       (*keepi == 4 && (((unsigned char)keep[0] >> 3) == 0b11110))) {
@@ -390,8 +450,8 @@ int output(FILE *stdout,
            float freq,
            float spread,
            float os) {
-  static int row;
-  static int column;
+  static int row = 1;
+  static int column = 1;
 
   static char keep[1024];
   static int keepi;
