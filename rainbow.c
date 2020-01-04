@@ -330,6 +330,12 @@ void *parseescapesequence(float freq, float spread, float os,
     *column = prevcolumn;
   }
 
+  /* Reset */
+  if (*keepi == 2 && keep[1] == 'c') {
+    *row = 1;
+    *column = 1;
+  }
+
   if (/* ANSI:  CSI - Control Sequence Introducer: */
         keep[1] == '[' && isalpha(keep[*keepi - 1])) {
     int n;
