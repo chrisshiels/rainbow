@@ -3,13 +3,6 @@
 
 
 /*
-  - See:
-    - lolcat.
-      - https://github.com/busyloop/lolcat
-    - Making Rainbows With Ruby, Waves And A Flux Capacitor.
-      - http://nikolay.rocks/2015-10-24-waves-rainbows-and-flux
-
-
   - Tested:
     - asciiquarium  - ok.
     - cmatrix       - ok.
@@ -30,47 +23,22 @@
 
 
   - Fix:
-    - Need to do some work on bash ^r to preserve row, column.
-    - Not sure can preserve row, column in less ^l.
+    - Preserve row, column for bash ^r.
+    - Preserve row, column for less ^l.
     - Replace unnecessary fprintf() calls with fputs().
-    - bash readline editing breaks with:  echo ls <ctrl-a> # <return>
     - Add 8bit support via command line flag - might be necessary for
       Linux console.
-    - Have less dark colours.
-    - Move rainbow inputs around.
-    - Rethink os, i in terms of os, row, column and CSI CUP.
-    - Rethink parsing all CSI sequences and maintaining row, column instead
-      of os and i.
-    - Need to add buffer overflow protection for keep.
+    - Have fewer dark colours.
     - Crashes when running Flask.
-    - rogue had problems.
-    - readline editing.
+    - Need to add buffer overflow protection for keep.
     - Leave ansisequence after 20 unrecognised bytes.
     - Leave utf8 after 4 unrecognised bytes.
-    - Move ansisequence conditions to separate parse functions.
-    - ^l results in odd colour change for first line only.
-    - vim insert mode colour transitions are too coarse.
-
-
-  - Done:
-    - Control-c behaviour ok.
-    - Control-z behaviour ok.
-    - Control-\ behaviour ok.
-    - Resizing windows works with vi ok.
-    - Environment correctly set in child shell ok.
-    - Exiting child bash exits cleanly ok.
 
 
   - To do:
     - Default to $SHELL and then default to /bin/bash.
-    - Need much more robust ansi escape sequence parser.
     - Allow specifying command line to run.
     - Allow specifying to filter.
-
-
-  - Hmmmm:
-    - We're faster than lolcat - guessing they're flushing per character but
-      we're using C stream buffering on stdout in order to minimise writes.
 */
 
 
@@ -98,6 +66,14 @@ int returnperror(const char *s, int status) {
 }
 
 
+/*
+  - See:
+    - lolcat.
+      - https://github.com/busyloop/lolcat
+
+    - Making Rainbows With Ruby, Waves And A Flux Capacitor.
+      - http://nikolay.rocks/2015-10-24-waves-rainbows-and-flux
+*/
 int rainbow(float freq, float i, int *red, int *green, int *blue) {
   *red   = sin(freq * i + 0) * 127 + 128;
   *green = sin(freq * i + 2 * M_PI / 3) * 127 + 128;
