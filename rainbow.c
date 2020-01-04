@@ -84,6 +84,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <termios.h>
@@ -286,6 +287,12 @@ void *parsetext(float freq, float spread, float os,
         - https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
           'Set Termcap /Terminfo Data (xterm, experimental)'.
 
+  - Notes on xterm escape sequences:
+
+    - Enable alternative screen buffer:       CSI ? 1049 h
+
+    - Disable alternative screen buffer:      CSI ? 1049 l
+
   - Notes on vt100 escape sequences:
 
     - See:
@@ -303,7 +310,25 @@ void *parseescapesequence(float freq, float spread, float os,
                           int *row, int *column,
                           char *keep, int *keepi,
                           char ch) {
+  static int prevrow;
+  static int prevcolumn;
+
   keep[(*keepi)++] = ch;
+
+  const char *xtermenablealternativebuffer = "\x1b[?1049h";
+  const char *xtermdisablealternativebuffer = "\x1b[?1049l";
+  if (/* xterm:  Enable alternative screen buffer: */
+        (*keepi == strlen(xtermenablealternativebuffer)) &&
+        (strncmp(keep, xtermenablealternativebuffer, *keepi) == 0)) {
+    prevrow = *row;
+    prevcolumn = *column;
+  }
+  else if (/* xterm:  Disable alternative screen buffer: */
+             (*keepi == strlen(xtermdisablealternativebuffer)) &&
+             (strncmp(keep, xtermdisablealternativebuffer, *keepi) == 0)) {
+    *row = prevrow;
+    *column = prevcolumn;
+  }
 
   if (/* ANSI:  CSI - Control Sequence Introducer: */
         keep[1] == '[' && isalpha(keep[*keepi - 1])) {
