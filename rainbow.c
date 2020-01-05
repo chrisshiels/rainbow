@@ -1,41 +1,56 @@
+/* 'rainbow.c'. */
+/* Chris Shiels.  2019. */
+
+
 /*
-  - Test with:
-    - top    - okish.
-    - vim    - okish.
-    - emacs  - okish.
-    - less   - okish.
-    - robots - okish.
-    - rogue  - okish.
+  - Tested:
+    - asciiquarium  - ok.
+    - cmatrix       - ok.
+    - emacs         - ok.
+    - less          - ok.
+    - man           - ok.
+    - mc            - ok.
+    - mutt          - ok.
+    - nethack       - ok.
+    - reset         - ok.
+    - robots        - ok.
+    - rogue         - ok.
+    - screen        - ok.
+    - sl            - ok.
+    - tmux          - ok.
+    - top           - ok.
+    - vim           - ok.
 
 
-  - Done:
-    - Control-c behaviour ok.
-    - Control-z behaviour ok.
-    - Control-\ behaviour ok.
-    - Resizing windows works with vi ok.
-    - Environment correctly set in child shell ok.
-    - Exiting child bash exits cleanly ok.
+  - Bugs:
+    - Rainbow colour display for bash ^r is not consistent
+      and this looks to be because instead of rewriting characters
+      bash / readline generates ^[[nP - DCH and relies on the
+      terminal to scroll existing output.
+    - Rainbow colour display when scrolling with vim ^e and ^y is not consistent
+      and this looks to be because instead of rewriting characters
+      vim uses scrolling regions and ^[[L to scroll existing output.
+    - Rainbow colour display for less ^l is not consistent
+      and this looks to be because less simply regenerates all lines of output
+      from the bottom of the page.
+
+
+  - Fix:
+    - Add 8bit support via command line flag - might be necessary for
+      Linux console.
+    - Have fewer dark colours.
+    - Need to add buffer overflow protection for keep.
+    - Leave ansisequence after n unrecognised bytes.
+    - Leave utf8 after 4 unrecognised bytes.
 
 
   - To do:
-    - Need much more robust ansi escape sequence parser.
+    - Default to $SHELL and then default to /bin/bash.
     - Allow specifying command line to run.
     - Allow specifying to filter.
-
-
-  - Hmmmm:
-    - We're faster than lolcat - guessing they're flushing per character but
-      we're using C stream buffering on stdout in order to minimise writes.
-    - Trying to use nonblocking was a mistake:
-      - Setting nonblocking on stdin resulted in it also being set on stdout.
-      - And we're using C stream buffering but occasional underlying write()s
-        would fail with errno == EAGAIN.
-      - But C stream wasn't retrying.
-      - End result was losing output.
 */
 
 
-#define _POSIX_C_SOURCE 200809L
 #define _XOPEN_SOURCE 500
 
 
@@ -49,7 +64,6 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
-#include <sys/wait.h>
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
@@ -61,6 +75,14 @@ int returnperror(const char *s, int status) {
 }
 
 
+/*
+  - See:
+    - lolcat.
+      - https://github.com/busyloop/lolcat
+
+    - Making Rainbows With Ruby, Waves And A Flux Capacitor.
+      - http://nikolay.rocks/2015-10-24-waves-rainbows-and-flux
+*/
 int rainbow(float freq, float i, int *red, int *green, int *blue) {
   *red   = sin(freq * i + 0) * 127 + 128;
   *green = sin(freq * i + 2 * M_PI / 3) * 127 + 128;
@@ -84,7 +106,7 @@ int ansicolour24bit(FILE *stream, int red, int green, int blue) {
 
 
 int ansicolourreset(FILE *stream) {
-  return fprintf(stream, "\x1b[0m");
+  return fputs("\x1b[0m", stream);
 }
 
 
@@ -112,20 +134,22 @@ int pty(int *fdmaster, int *fdslave) {
 int windowsizecopy(int fdfrom, int fdto) {
   struct winsize w;
 
-  if (ioctl(fdfrom, TIOCGWINSZ, (char *)&w) == -1)
+  if (ioctl(fdfrom, TIOCGWINSZ, &w) == -1)
     return returnperror("ioctl()", -1);
-  if (ioctl(fdto, TIOCSWINSZ, (char *)&w) == -1)
+  if (ioctl(fdto, TIOCSWINSZ, &w) == -1)
     return returnperror("ioctl()", -1);
 
   return 0;
 }
 
 
-void signalchildstoppedorterminated() {}
-
-
 static int g_fdstdin;
 static int g_fdmaster;
+
+
+void signalchildstoppedorterminated() {
+  close(g_fdmaster);
+}
 
 
 void signalwindowresize() {
@@ -135,11 +159,12 @@ void signalwindowresize() {
 
 
 int signals(int fdstin, int fdmaster) {
+  g_fdstdin = fdstin;
+  g_fdmaster = fdmaster;
+
   if (signal(SIGCHLD, signalchildstoppedorterminated) == SIG_ERR)
     return returnperror("signal()", -1);
 
-  g_fdstdin = fdstin;
-  g_fdmaster = fdmaster;
   if (signal(SIGWINCH, signalwindowresize) == SIG_ERR)
     return returnperror("signal()", -1);
 
@@ -175,124 +200,271 @@ int termiosreset(int fd, const struct termios *t) {
 }
 
 
+int parsenandm(const char *s, int *n, int *m) {
+  *n = 0;
+  *m = 0;
+
+  for (; *s && isdigit(*s); s++) {
+    *n *= 10;
+    *n += *s - '0';
+  }
+
+  if (*s++ != ';')
+    return 0;
+
+  for (; *s && isdigit(*s); s++) {
+    *m *= 10;
+    *m += *s - '0';
+  }
+
+  return 0;
+}
+
+
+typedef void *(*parserfunction)(float freq, float spread, float os,
+                                int *row, int *column,
+                                char *keep, int *keepi,
+                                char ch);
+
+
+void *parseescapesequence(float freq, float spread, float os,
+                          int *row, int *column,
+                          char *keep, int *keepi,
+                          char ch);
+
+
+void *parseutf8(float freq, float spread, float os,
+                int *row, int *column,
+                char *keep, int *keepi,
+                char ch);
+
+
+void *parsetext(float freq, float spread, float os,
+                int *row, int *column,
+                char *keep, int *keepi,
+                char ch);
+
+
 /*
-  - Notes on ANSI escape sequences:
+  - See:
+    - ANSI escape code.
+      - https://en.wikipedia.org/wiki/ANSI_escape_code
 
-    - See:
-      https://en.wikipedia.org/wiki/ANSI_escape_code
-    
-    - Sequences:
+    - ANSI Escape sequences - VT100 / VT52.
+      - http://ascii-table.com/ansi-escape-sequences-vt-100.php
 
-      - ST  - String Terminator:              ESC \
+    - XTerm Control Sequences.
+      - https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
 
-      - CSI - Control Sequence Introducer:    ESC [ data
+    - Linux console escape and control sequences.
+      - console_codes(4)
 
-      - OSC - Operating System Command:       ESC ] data <ST>
-
-        - Used by vte to report state, e.g.
-          ESC ] 777;notify;Command completed;sleep 5 <ST?>, then,
-          ESC ] 0;chris@holzer:~/c] <ST?>, then,
-          ESC ] 7;file://holzer.home.mecachis.net/home/chris/c <ST?>
-
-      - DCS - Device Control String:          ESC P data <ST>
-
-        - https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
-          'Set Termcap /Terminfo Data (xterm, experimental)'.
-
-  - Notes on vt100 escape sequences:
-
-    - See:
-      http://ascii-table.com/ansi-escape-sequences-vt-100.php
-
-    - Used by less.
-
-    - Sequences:
-
-      - Move / scroll window down one line:   ESC M
-
-      - Set United States G0 character set:   ESC ( B 	
+    - Terminal type descriptions source file.
+      - https://invisible-island.net/ncurses/terminfo.src.html
 */
+void *parseescapesequence(float freq, float spread, float os,
+                          int *row, int *column,
+                          char *keep, int *keepi,
+                          char ch) {
+  static int prevrow;
+  static int prevcolumn;
+
+  keep[(*keepi)++] = ch;
+
+  const char *xtermenablealternativebuffer = "\x1b[?1049h";
+  const char *xtermdisablealternativebuffer = "\x1b[?1049l";
+  if (/* xterm:  Enable alternative screen buffer: */
+        (*keepi == strlen(xtermenablealternativebuffer)) &&
+        (strncmp(keep, xtermenablealternativebuffer, *keepi) == 0)) {
+    prevrow = *row;
+    prevcolumn = *column;
+  }
+  else if (/* xterm:  Disable alternative screen buffer: */
+             (*keepi == strlen(xtermdisablealternativebuffer)) &&
+             (strncmp(keep, xtermdisablealternativebuffer, *keepi) == 0)) {
+    *row = prevrow;
+    *column = prevcolumn;
+  }
+  else if (/* ANSI:  RIS - Reset. */
+             *keepi == 2 && keep[1] == 'c') {
+    *row = 1;
+    *column = 1;
+  }
+
+  if (/* ANSI:  CSI - Control Sequence Introducer: */
+        keep[1] == '[' && isalpha(keep[*keepi - 1])) {
+    int n;
+    int m;
+
+    parsenandm(keep + 2, &n, &m);
+
+    if (n == 0)
+      n = 1;
+
+    if (m == 0)
+      m = 1;
+
+    switch (keep[*keepi - 1]) {
+    case 'A': /* ANSI:  'CSI n A' - CUU - Cursor Up: */
+              *row -= n;
+              break;
+    case 'B': /* ANSI:  'CSI n B' - CUD - Cursor Down: */
+              *row += n;
+              break;
+    case 'C': /* ANSI:  'CSI n C' - CUF - Cursor Forward: */
+              *column += n;
+              break;
+    case 'D': /* ANSI:  'CSI n D' - CUB - Cursor Back: */
+              *column -= n;
+              break;
+    case 'E': /* ANSI:  'CSI n E' - CNL - Cursor Next Line: */
+              *row += n;
+              *column = 1;
+              break;
+    case 'F': /* ANSI:  'CSI n F' - CPL - Cursor Previous Line: */
+              *row -= n;
+              *column = 1;
+              break;
+    case 'G': /* ANSI:  'CSI n G' - CHA - Cursor Horizontal Absolute: */
+              *column = n;
+              break;
+    case 'H': /* ANSI:  'CSI n ; m H' - CUP - Cursor Position: */
+              *row = n;
+              *column = m;
+              break;
+    case 'f': /* ANSI:  'CSI n ; m f' - HVP - Horizontal Vertical Position: */
+              *row = n;
+              *column = m;
+              break;
+    case '@': /* ANSI:  'CSI n @' - ICH - Insert Characters: */
+	      break;
+    }
+    keep[*keepi] = '\0';
+    fputs(keep, stdout);
+    *keepi = 0;
+    return parsetext;
+  }
+
+  if (/* ANSI:  OSC - Operating System Command: */
+      /*  - Used by vte to report state, e.g. */
+      /*    ESC ] 777;notify;Command completed;sleep 5\a, then, */
+      /*    ESC ] 0;chris@holzer:~/c\a, then, */
+      /*    ESC ] 7;file://hostname.domainname/home/chris/c\a */
+        (keep[1] == ']' && keep[*keepi - 1] == '\a') ||
+      /* ANSI:  OSC - Operating System Command: */
+        (keep[1] == ']' &&
+         keep[*keepi - 2] == '\x1b' && keep[*keepi - 1] == '\\') ||
+      /* ANSI:  DCS - Device Control String: */
+        (keep[1] == 'P' &&
+         keep[*keepi - 2] == '\x1b' && keep[*keepi - 1] == '\\') ||
+      /* Other: */
+        (*keepi == 3 && keep[1] == '(') ||
+        (*keepi == 3 && keep[1] == ')') ||
+        (*keepi == 2 && keep[1] == '=') ||
+        (*keepi == 2 && keep[1] == '>') ||
+        (*keepi == 2 && keep[1] == '7') ||
+        (*keepi == 2 && keep[1] == '8') ||
+        (*keepi == 2 && keep[1] == 'M') ||
+        (*keepi == 2 && keep[1] == 'c')) {
+    keep[*keepi] = '\0';
+    fputs(keep, stdout);
+    *keepi = 0;
+    return parsetext;
+  }
+
+  return parseescapesequence;
+}
+
+
+void *parseutf8(float freq, float spread, float os,
+                int *row, int *column,
+                char *keep, int *keepi,
+                char ch) {
+  int red;
+  int green;
+  int blue;
+
+  keep[(*keepi)++] = ch;
+
+  if ((*keepi == 2 && (((unsigned char)keep[0] >> 5) == 0b110)) ||
+      (*keepi == 3 && (((unsigned char)keep[0] >> 4) == 0b1110)) ||
+      (*keepi == 4 && (((unsigned char)keep[0] >> 3) == 0b11110))) {
+    *column += 1;
+    keep[*keepi] = '\0';
+    rainbow(freq, os + *row + *column / spread, &red, &green, &blue);
+    ansicolour24bit(stdout, red, green, blue);
+    fputs(keep, stdout);
+    *keepi = 0;
+    return parsetext;
+  }
+
+  return parseutf8;
+}
+
+
+void *parsetext(float freq, float spread, float os,
+                int *row, int *column,
+                char *keep, int *keepi,
+                char ch) {
+  int red;
+  int green;
+  int blue;
+
+  if (ch == '\x1b') {
+    *keepi = 0;
+    keep[(*keepi)++] = ch;
+    return parseescapesequence;
+  }
+
+  if (ch & 128) {
+    *keepi = 0;
+    keep[(*keepi)++] = ch;
+    return parseutf8;
+  }
+
+  if (ch == '\n') {
+    *row += 1;
+    *column = 1;
+  } else if (ch == '\b')
+    *column -= 1;
+  else if (ch == '\r')
+    *column = 1;
+  else
+    *column += 1;
+
+  rainbow(freq, os + *row + *column / spread, &red, &green, &blue);
+  ansicolour24bit(stdout, red, green, blue);
+  fputc(ch, stdout);
+  return parsetext;
+}
+
+
 int output(FILE *stdout,
            const char *buf,
            int count,
            float freq,
            float spread,
-           float *os,
-           int *i) {
-  int red;
-  int green;
-  int blue;
-
-  enum {
-    text,
-    ansisequence,
-    utf8
-  } state = text;
+           float os) {
+  static int row = 1;
+  static int column = 1;
 
   static char keep[1024];
   static int keepi;
 
-  for (int j = 0; j < count; j++) {
-    if (state == ansisequence) {
-      keep[keepi++] = buf[j];
-      if ((keep[1] == '[' && isalpha(buf[j])) ||
-          (keep[1] == ']' && buf[j] == '\\') ||
-          (keep[1] == 'P' && buf[j] == '\\') ||
-          (keep[1] == '(' && keepi == 3) ||
-          (keep[1] == ')' && keepi == 3) ||
-	  (keep[1] == '=' && keepi == 2) ||
-	  (keep[1] == '>' && keepi == 2) ||
-          (keep[1] == 'M' )) {
-        keep[keepi] = '\0';
-        fprintf(stdout, keep);
-        keepi = 0;
-        state = text;
-        continue;
-      }
-    }
-    else if (state == utf8) {
-      keep[keepi++] = buf[j];
-      if (((keep[1] & 0b110) && keepi == 2) ||
-          ((keep[2] & 0b1110) && keepi == 3) ||
-          ((keep[3] & 0b11110) && keepi == 4)) {
-        keep[keepi] = '\0';
-        fprintf(stdout, keep);
-        keepi = 0;
-        state = text;
-        continue;
-      }
-    }
-    else if (state == text) {
-      if (buf[j] == '\x1b') {
-        keepi = 0;
-        keep[keepi++] = buf[j];
-        state = ansisequence;
-        continue;
-      }
+  static parserfunction parser = parsetext;
 
-      if (buf[j] & 128) {
-        keepi = 0;
-        keep[keepi++] = buf[j];
-        state = utf8;
-        continue;
-      }
-
-      if (buf[j] == '\n') {
-        *os += 1;
-        *i = 0;
-      }
-
-      rainbow(freq, *os + *i / spread, &red, &green, &blue);
-      ansicolour24bit(stdout, red, green, blue);
-      //ansicolour8bit(stdout, red, green, blue);
-      fprintf(stdout, "%c", buf[j]);
-      *i += 1;
-    }
+  int i;
+  for (i = 0; i < count; i++) {
+    parser = parser(freq, spread, os, &row, &column, keep, &keepi, buf[i]);
   }
 
-  fflush(stdout);
-  if (ferror(stdout))
-    return -1;
+  for (;;) {
+    fflush(stdout);
+    if (!ferror(stdout))
+      break;
+    clearerr(stdout);
+  }
+
   return 0;
 }
 
@@ -300,13 +472,10 @@ int output(FILE *stdout,
 int loop(FILE *stdout, int fdstdin, int fdmaster, int childpid) {
   float freq = 0.1;
   float spread = 3.0;
-  float os = rand() * 1.0 / RAND_MAX * 255;
-  //float os = random() * 1.0 / RAND_MAX * 255;
-  int i = 0;
+  float os = random() * 1.0 / RAND_MAX * 255;
 
   fd_set readfds;
-  int ret;
-  char buf[8192];
+  char buf[1024];
   int nread;
 
   for (;;) {
@@ -315,32 +484,26 @@ int loop(FILE *stdout, int fdstdin, int fdmaster, int childpid) {
     FD_SET(fdmaster, &readfds);
 
     if (select(fdmaster + 1, &readfds, NULL, NULL, NULL) == -1) {
-      if (errno != EINTR)
+      if (errno == EINTR)
+        continue;
+      else if (errno == EBADF)
+        break;
+      else
         return returnperror("select()", -1);
-      else {
-        if ((ret = waitpid(childpid, NULL, WNOHANG)) == -1)
-          return returnperror("waitpid()", -1);
-        else if (ret == childpid)
-          break;
-        else
-          continue;
-      }
     }
 
     if (FD_ISSET(fdstdin, &readfds)) {
-      if ((nread = read(fdstdin, buf, 8192)) == -1)
+      if ((nread = read(fdstdin, buf, 1024)) == -1)
         return returnperror("read()", -1);
       else if (write(fdmaster, buf, nread) != nread)
         return returnperror("write()", -1);
     }
 
     if (FD_ISSET(fdmaster, &readfds)) {
-      if ((nread = read(fdmaster, buf, 8192)) == -1)
+      if ((nread = read(fdmaster, buf, 1024)) == -1)
         return returnperror("read()", -1);
-      else if (output(stdout, buf, nread, freq, spread, &os, &i) == -1)
+      else if (output(stdout, buf, nread, freq, spread, os) == -1)
         return returnperror("output()", -1);
-      //else if (write(STDOUT_FILENO, buf, nread) != nread)
-      //  return returnperror("write()", -1);
     }
   }
 
@@ -400,32 +563,7 @@ int start(const char **envp, int fdmaster, int fdslave) {
 
 
 int main(int argc, const char **argv, const char **envp) {
-  srand(time(NULL));
-  //srandom(time(NULL));
-
-
-#if 0
-  float freq = 0.1;
-  float spread = 3.0;
-  float os = rand() * 1.0 / RAND_MAX * 255;
-  //float os = random() * 1.0 / RAND_MAX * 255;
-
-  int red;
-  int green;
-  int blue;
-  const char *message = "No hay mal que por bien no venga\n";
-  for (int j = 0; j < 100; j++) {
-    os++;
-    for (int i = 0; i < strlen(message); i++) {
-      rainbow(freq, os + i / spread, &red, &green, &blue);
-      ansicolour24bit(stdout, red, green, blue);
-      //ansicolour8bit(stdout, red, green, blue);
-      fprintf(stdout, "%c", message[i]);
-    }
-    fflush(stdout);
-  }
-#endif
-
+  srandom(time(NULL));
 
   int fdmaster, fdslave;
   if (pty(&fdmaster, &fdslave) == -1)
