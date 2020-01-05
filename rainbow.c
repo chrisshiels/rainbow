@@ -424,11 +424,11 @@ void *parsetext(float freq, float spread, float os,
 
   if (ch == '\n') {
     *row += 1;
-    *column = 0;
+    *column = 1;
   } else if (ch == '\b')
     *column -= 1;
   else if (ch == '\r')
-    *column = 0;
+    *column = 1;
   else
     *column += 1;
 
