@@ -337,6 +337,8 @@ void *parseescapesequence(float freq, float spread, float os,
               *row = n;
               *column = m;
               break;
+    case '@': /* ANSI:  'CSI n @' - ICH - Insert Characters: */
+	      break;
     }
     keep[*keepi] = '\0';
     fprintf(stdout, keep);
@@ -356,8 +358,6 @@ void *parseescapesequence(float freq, float spread, float os,
       /* ANSI:  DCS - Device Control String: */
         (keep[1] == 'P' &&
          keep[*keepi - 2] == '\x1b' && keep[*keepi - 1] == '\\') ||
-      /* ECMA-48 CSI:  ICH - Insert blank characters: */
-        (*keepi == 4 && keep[3] == '@') ||
       /* Other: */
         (*keepi == 3 && keep[1] == '(') ||
         (*keepi == 3 && keep[1] == ')') ||
