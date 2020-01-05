@@ -22,16 +22,26 @@
     - vim           - ok.
 
 
+  - Bugs:
+    - Rainbow colour display for bash ^r is not consistent
+      and this looks to be because instead of rewriting characters
+      bash / readline generates ^[[nP - DCH and relies on the
+      terminal to scroll existing output.
+    - Rainbow colour display when scrolling with vim ^e and ^y is not consistent
+      and this looks to be because instead of rewriting characters
+      vim uses scrolling regions and ^[[L to scroll existing output.
+    - Rainbow colour display for less ^l is not consistent
+      and this looks to be because less simply regenerates all lines of output
+      from the bottom of the page.
+
+
   - Fix:
-    - Preserve row, column for bash ^r.
-    - Preserve row, column for less ^l.
     - Replace unnecessary fprintf() calls with fputs().
     - Add 8bit support via command line flag - might be necessary for
       Linux console.
     - Have fewer dark colours.
-    - Crashes when running Flask.
     - Need to add buffer overflow protection for keep.
-    - Leave ansisequence after 20 unrecognised bytes.
+    - Leave ansisequence after n unrecognised bytes.
     - Leave utf8 after 4 unrecognised bytes.
 
 
@@ -237,50 +247,21 @@ void *parsetext(float freq, float spread, float os,
 
 
 /*
-  - Notes on ANSI escape sequences:
+  - See:
+    - ANSI escape code.
+      - https://en.wikipedia.org/wiki/ANSI_escape_code
 
-    - See:
-      console_codes(4)
+    - ANSI Escape sequences - VT100 / VT52.
+      - http://ascii-table.com/ansi-escape-sequences-vt-100.php
 
-    - See:
-      https://en.wikipedia.org/wiki/ANSI_escape_code
+    - XTerm Control Sequences.
+      - https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
 
-    - Sequences:
+    - Linux console escape and control sequences.
+      - console_codes(4)
 
-      - ST  - String Terminator:              ESC \
-
-      - CSI - Control Sequence Introducer:    ESC [ data
-
-      - OSC - Operating System Command:       ESC ] data <ST>
-
-        - Used by vte to report state, e.g.
-          ESC ] 777;notify;Command completed;sleep 5\a, then,
-          ESC ] 0;chris@holzer:~/c\a, then,
-          ESC ] 7;file://holzer.home.mecachis.net/home/chris/c\a
-
-      - DCS - Device Control String:          ESC P data <ST>
-
-        - https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
-          'Set Termcap /Terminfo Data (xterm, experimental)'.
-
-  - Notes on xterm escape sequences:
-
-    - Enable alternative screen buffer:       CSI ? 1049 h
-
-    - Disable alternative screen buffer:      CSI ? 1049 l
-
-  - Notes on vt100 escape sequences:
-
-    - See:
-      http://ascii-table.com/ansi-escape-sequences-vt-100.php
-
-    - Used by less.
-
-    - Sequences:
-
-      - Move / scroll window down one line:   ESC M
-
-      - Set United States G0 character set:   ESC ( B
+    - Terminal type descriptions source file.
+      - https://invisible-island.net/ncurses/terminfo.src.html
 */
 void *parseescapesequence(float freq, float spread, float os,
                           int *row, int *column,
@@ -305,9 +286,8 @@ void *parseescapesequence(float freq, float spread, float os,
     *row = prevrow;
     *column = prevcolumn;
   }
-
-  /* Reset */
-  if (*keepi == 2 && keep[1] == 'c') {
+  else if (/* ANSI:  RIS - Reset. */
+             *keepi == 2 && keep[1] == 'c') {
     *row = 1;
     *column = 1;
   }
@@ -365,6 +345,10 @@ void *parseescapesequence(float freq, float spread, float os,
   }
 
   if (/* ANSI:  OSC - Operating System Command: */
+      /*  - Used by vte to report state, e.g. */
+      /*    ESC ] 777;notify;Command completed;sleep 5\a, then, */
+      /*    ESC ] 0;chris@holzer:~/c\a, then, */
+      /*    ESC ] 7;file://hostname.domainname/home/chris/c\a */
         (keep[1] == ']' && keep[*keepi - 1] == '\a') ||
       /* ANSI:  OSC - Operating System Command: */
         (keep[1] == ']' &&
@@ -374,7 +358,7 @@ void *parseescapesequence(float freq, float spread, float os,
          keep[*keepi - 2] == '\x1b' && keep[*keepi - 1] == '\\') ||
       /* ECMA-48 CSI:  ICH - Insert blank characters: */
         (*keepi == 4 && keep[3] == '@') ||
-      /* VT100: */
+      /* Other: */
         (*keepi == 3 && keep[1] == '(') ||
         (*keepi == 3 && keep[1] == ')') ||
         (*keepi == 2 && keep[1] == '=') ||
