@@ -390,6 +390,7 @@ void *parseutf8(float freq, float spread, float os,
   if ((*keepi == 2 && (((unsigned char)keep[0] >> 5) == 0b110)) ||
       (*keepi == 3 && (((unsigned char)keep[0] >> 4) == 0b1110)) ||
       (*keepi == 4 && (((unsigned char)keep[0] >> 3) == 0b11110))) {
+    *column += 1;
     keep[*keepi] = '\0';
     rainbow(freq, os + *row + *column / spread, &red, &green, &blue);
     ansicolour24bit(stdout, red, green, blue);
