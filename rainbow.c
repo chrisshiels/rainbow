@@ -36,7 +36,6 @@
 
 
   - Fix:
-    - Replace unnecessary fprintf() calls with fputs().
     - Add 8bit support via command line flag - might be necessary for
       Linux console.
     - Have fewer dark colours.
@@ -107,7 +106,7 @@ int ansicolour24bit(FILE *stream, int red, int green, int blue) {
 
 
 int ansicolourreset(FILE *stream) {
-  return fprintf(stream, "\x1b[0m");
+  return fputs("\x1b[0m", stream);
 }
 
 
@@ -341,7 +340,7 @@ void *parseescapesequence(float freq, float spread, float os,
 	      break;
     }
     keep[*keepi] = '\0';
-    fprintf(stdout, keep);
+    fputs(keep, stdout);
     *keepi = 0;
     return parsetext;
   }
@@ -368,7 +367,7 @@ void *parseescapesequence(float freq, float spread, float os,
         (*keepi == 2 && keep[1] == 'M') ||
         (*keepi == 2 && keep[1] == 'c')) {
     keep[*keepi] = '\0';
-    fprintf(stdout, keep);
+    fputs(keep, stdout);
     *keepi = 0;
     return parsetext;
   }
@@ -394,7 +393,7 @@ void *parseutf8(float freq, float spread, float os,
     keep[*keepi] = '\0';
     rainbow(freq, os + *row + *column / spread, &red, &green, &blue);
     ansicolour24bit(stdout, red, green, blue);
-    fprintf(stdout, keep);
+    fputs(keep, stdout);
     *keepi = 0;
     return parsetext;
   }
