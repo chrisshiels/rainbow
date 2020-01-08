@@ -598,7 +598,7 @@ char *searchpath(const char *var, const char *name, char *buf, int buflen) {
 
 
 int usage(FILE *stream, int status) {
-  fputs("Usage:  ...\n", stream);
+  fputs("Usage:  rainbow [ command [ arg ... ] ]\n", stream);
   return status;
 }
 
