@@ -43,16 +43,13 @@
     - Need to add buffer overflow protection for keep.
     - Leave ansisequence after n unrecognised bytes.
     - Leave utf8 after 4 unrecognised bytes.
-
-
-  - To do:
-    - Default to $SHELL and then default to /bin/bash.
-    - Allow specifying command line to run.
-    - Allow specifying to filter.
 */
 
 
 #define _XOPEN_SOURCE 500
+
+
+#define DEFAULT_SHELL "/bin/bash"
 
 
 #include <ctype.h>
@@ -536,7 +533,7 @@ int parent(int fdmaster, int childpid) {
 }
 
 
-int child(int fdslave, const char **envp) {
+int child(int fdslave, const char **argv, const char **envp) {
   if (setsid() == -1)
     return returnperror("setsid()", -1);
 
@@ -545,33 +542,96 @@ int child(int fdslave, const char **envp) {
       dup2(fdslave, STDERR_FILENO) == -1)
     return returnperror("dup2()", -1);
 
-  char *newargv[] = { "/bin/bash", NULL };
-  execve("/bin/bash", newargv, (char * const*)envp);
+  execve(argv[0], (char * const*)argv, (char * const*)envp);
 
   return returnperror("execve()", -1);
 }
 
 
-int start(const char **envp, int fdmaster, int fdslave) {
-  int pid = fork();
-  if (pid == -1)
-    return returnperror("fork()", -1);
-  else if (pid != 0)
-    return parent(fdmaster, pid);
-  else
-    return child(fdslave, envp);
-}
+int start(const char **argv, const char **envp) {
+  if (access(argv[0], F_OK | X_OK) == -1)
+    return returnperror("access()", -1);
 
-
-int main(int argc, const char **argv, const char **envp) {
   srandom(time(NULL));
 
   int fdmaster, fdslave;
   if (pty(&fdmaster, &fdslave) == -1)
     return EXIT_FAILURE;
 
-  if (start(envp, fdmaster, fdslave) == -1)
-    return EXIT_FAILURE;
+  int pid = fork();
+  if (pid == -1)
+    return returnperror("fork()", -1);
+  else if (pid != 0)
+    return parent(fdmaster, pid);
+  else
+    return child(fdslave, argv, envp);
 
   return EXIT_SUCCESS;
+}
+
+
+char *searchpath(const char *var, const char *name, char *buf, int buflen) {
+  const char *value = getenv(var);
+  if (!value)
+    return NULL;
+
+  char *value1 = strdup(value);
+  if (!value1)
+    return NULL;
+
+  char *s;
+  for (s = strtok(value1, ":"); s != NULL; s = strtok(NULL, ":")) {
+    snprintf(buf, buflen, "%s/%s", s, name);
+    if (access(buf, F_OK | X_OK) == 0)
+      break;
+  }
+
+  free(value1);
+
+  if (!s) {
+    errno = ENOENT;
+    return NULL;
+  }
+  else
+    return buf;
+}
+
+
+int usage(FILE *stream, int status) {
+  fputs("Usage:  ...\n", stream);
+  return status;
+}
+
+
+int startshell(const char **argv, const char **envp) {
+  char *shell = getenv("SHELL");
+  if (!shell)
+    shell = DEFAULT_SHELL;
+  return start((const char *[]){ shell, NULL }, envp);
+}
+
+
+int startpath(const char **argv, const char **envp) {
+  return start(argv + 1, envp);
+}
+
+
+int startsearchpath(const char **argv, const char **envp) {
+  char buf[FILENAME_MAX];
+  if (!searchpath("PATH", argv[1], buf, FILENAME_MAX))
+    return returnperror("access()", -1);
+  argv[1] = buf;
+  return start(argv + 1, envp);
+}
+
+
+int main(int argc, const char **argv, const char **envp) {
+  if (argc == 2 && strcmp(argv[1], "--help") == 0)
+    return usage(stdout, EXIT_SUCCESS);
+  else if (argc == 1)
+    return startshell(argv, envp);
+  else if (strchr(argv[1], '/'))
+    return startpath(argv, envp);
+  else
+    return startsearchpath(argv, envp);
 }
