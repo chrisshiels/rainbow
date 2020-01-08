@@ -36,6 +36,7 @@
 
 
   - Fix:
+    - Fix returnperror() exit codes.
     - Add 8bit support via command line flag - might be necessary for
       Linux console.
     - Have fewer dark colours.
