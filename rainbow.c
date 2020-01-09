@@ -337,7 +337,7 @@ void *parseescapesequence(float freq, float spread, float os,
               *column = m;
               break;
     case '@': /* ANSI:  'CSI n @' - ICH - Insert Characters: */
-	      break;
+              break;
     }
     keep[*keepi] = '\0';
     fputs(keep, stdout);
