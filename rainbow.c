@@ -143,10 +143,11 @@ int windowsizecopy(int fdfrom, int fdto) {
 
 static int g_fdstdin;
 static int g_fdmaster;
+static int g_fdslave;
 
 
 void signalchildstoppedorterminated() {
-  close(g_fdmaster);
+  close(g_fdslave);
 }
 
 
@@ -156,9 +157,10 @@ void signalwindowresize() {
 }
 
 
-int signals(int fdstin, int fdmaster) {
+int signals(int fdstin, int fdmaster, int fdslave) {
   g_fdstdin = fdstin;
   g_fdmaster = fdmaster;
+  g_fdslave = fdslave;
 
   if (signal(SIGCHLD, signalchildstoppedorterminated) == SIG_ERR)
     return returnperror("signal()", -1);
@@ -491,14 +493,19 @@ int loop(FILE *stdout, int fdstdin, int fdmaster, int childpid) {
     }
 
     if (FD_ISSET(fdstdin, &readfds)) {
-      if ((nread = read(fdstdin, buf, 1024)) == -1)
+      nread = read(fdstdin, buf, 1024);
+      if (nread == -1)
         return returnperror("read()", -1);
       else if (write(fdmaster, buf, nread) != nread)
         return returnperror("write()", -1);
     }
 
     if (FD_ISSET(fdmaster, &readfds)) {
-      if ((nread = read(fdmaster, buf, 1024)) == -1)
+      nread = read(fdmaster, buf, 1024);
+      if (nread == 0 ||
+          (nread == -1 && errno == EIO))
+        break;
+      else if (nread == -1)
         return returnperror("read()", -1);
       else if (output(stdout, buf, nread, freq, spread, os) == -1)
         return returnperror("output()", -1);
@@ -509,11 +516,11 @@ int loop(FILE *stdout, int fdstdin, int fdmaster, int childpid) {
 }
 
 
-int parent(int fdmaster, int childpid) {
+int parent(int fdmaster, int fdslave, int childpid) {
   if (windowsizecopy(STDIN_FILENO, fdmaster) == -1)
     return -1;
 
-  if (signals(STDIN_FILENO, fdmaster) == -1)
+  if (signals(STDIN_FILENO, fdmaster, fdslave) == -1)
     return -1;
 
   struct termios t;
@@ -562,7 +569,7 @@ int start(const char **argv, const char **envp) {
   if (pid == -1)
     return returnperror("fork()", -1);
   else if (pid != 0)
-    return parent(fdmaster, pid);
+    return parent(fdmaster, fdslave, pid);
   else
     return child(fdslave, argv, envp);
 
