@@ -429,6 +429,8 @@ void *parsetext(float freq, float spread, float os,
     *column -= 1;
   else if (ch == '\r')
     *column = 1;
+  else if (ch == '\t')
+    *column += 8 - (*column % 8);
   else
     *column += 1;
 
