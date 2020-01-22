@@ -1,6 +1,7 @@
 # rainbow
 
-An interactive Lolcat - narwhales and unicorns dancing on rainbows.
+Interactive Lolcat terminal session - narwhales and unicorns dancing on
+rainbows.
 
 ## Demo
 
