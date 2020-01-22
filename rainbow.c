@@ -365,6 +365,7 @@ void *parseescapesequence(float freq, float spread, float os,
         (*keepi == 2 && keep[1] == '>') ||
         (*keepi == 2 && keep[1] == '7') ||
         (*keepi == 2 && keep[1] == '8') ||
+        (*keepi == 2 && keep[1] == 'H') ||
         (*keepi == 2 && keep[1] == 'M') ||
         (*keepi == 2 && keep[1] == 'c')) {
     keep[*keepi] = '\0';
