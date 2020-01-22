@@ -292,7 +292,8 @@ void *parseescapesequence(float freq, float spread, float os,
   }
 
   if (/* ANSI:  CSI - Control Sequence Introducer: */
-        keep[1] == '[' && isalpha(keep[*keepi - 1])) {
+        keep[1] == '[' &&
+        (isalpha(keep[*keepi - 1]) || keep[*keepi - 1] == '@')) {
     int n;
     int m;
 
