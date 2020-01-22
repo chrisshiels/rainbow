@@ -292,7 +292,8 @@ void *parseescapesequence(float freq, float spread, float os,
   }
 
   if (/* ANSI:  CSI - Control Sequence Introducer: */
-        keep[1] == '[' && isalpha(keep[*keepi - 1])) {
+        keep[1] == '[' &&
+        (isalpha(keep[*keepi - 1]) || keep[*keepi - 1] == '@')) {
     int n;
     int m;
 
@@ -364,6 +365,7 @@ void *parseescapesequence(float freq, float spread, float os,
         (*keepi == 2 && keep[1] == '>') ||
         (*keepi == 2 && keep[1] == '7') ||
         (*keepi == 2 && keep[1] == '8') ||
+        (*keepi == 2 && keep[1] == 'H') ||
         (*keepi == 2 && keep[1] == 'M') ||
         (*keepi == 2 && keep[1] == 'c')) {
     keep[*keepi] = '\0';
@@ -429,6 +431,8 @@ void *parsetext(float freq, float spread, float os,
     *column -= 1;
   else if (ch == '\r')
     *column = 1;
+  else if (ch == '\t')
+    *column += 8 - (*column % 8);
   else
     *column += 1;
 
