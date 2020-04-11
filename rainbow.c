@@ -17,6 +17,7 @@
     - rogue         - ok.
     - screen        - ok.
     - sl            - ok.
+    - tabs          - ok.
     - tmux          - ok.
     - top           - ok.
     - vim           - ok.
@@ -43,6 +44,12 @@
     - Need to add buffer overflow protection for keep.
     - Leave ansisequence after n unrecognised bytes.
     - Leave utf8 after 4 unrecognised bytes.
+
+
+  - Ideas:
+    - Use cursor position report when starting.
+    - Invert select loop and parser.
+    - Explore curses and scrolling terminals.
 */
 
 
