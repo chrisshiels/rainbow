@@ -12,6 +12,7 @@
     - mc            - ok.
     - mutt          - ok.
     - nethack       - ok.
+    - nyancat       - ok.
     - reset         - ok.
     - robots        - ok.
     - rogue         - ok.
@@ -375,6 +376,15 @@ void *parseescapesequence(float freq, float spread, float os,
         (*keepi == 2 && keep[1] == 'H') ||
         (*keepi == 2 && keep[1] == 'M') ||
         (*keepi == 2 && keep[1] == 'c')) {
+    keep[*keepi] = '\0';
+    fputs(keep, stdout);
+    *keepi = 0;
+    return parsetext;
+  }
+
+  if (/* screen/tmux:  'ESC k title ESC \' - Set title - Emitted by nyancat */
+        keep[1] == 'k' ||
+        keep[1] == '\\') {
     keep[*keepi] = '\0';
     fputs(keep, stdout);
     *keepi = 0;
