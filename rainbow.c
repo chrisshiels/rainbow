@@ -154,12 +154,12 @@ static int g_fdmaster;
 static int g_fdslave;
 
 
-void signalchildstoppedorterminated() {
+void signalchildstoppedorterminated(int i) {
   close(g_fdslave);
 }
 
 
-void signalwindowresize() {
+void signalwindowresize(int i) {
   windowsizecopy(g_fdstdin, g_fdmaster);
   signal(SIGWINCH, signalwindowresize);
 }
